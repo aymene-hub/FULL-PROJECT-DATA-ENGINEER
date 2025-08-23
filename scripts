@@ -1,1 +1,12 @@
-
+-------------------------------------------------------------------------------------------------------------------------------------
+THIS FILE CONTAINT ALL SQL SCRIPTS THAT YOU NEED TO CREATE YOUR DATABASE 
+WARNING : THIS SCRIPTS MAY IS NOT VALID BECAUSE OF VERSION AND DATABASE YOU USE SO YOU NEED TO CHECK HOW THE SYNTAX SHOULD BE OR THE CORRECT WRITE OF SCRIPTS 
+-------------------------------------------------------------------------------------------------------------------------------------
+1-FIRST YOU NEED TO CREATE A DATABSE NAMED 'DATAWAREHOUSE'
+CREATE DATABSE DATAWAREHOUSE
+2-SECOND YOU NEED TO CREATE YOUR SCHEMAS :
+create schema bronze
+go
+create schema silver
+go
+create schema gold
