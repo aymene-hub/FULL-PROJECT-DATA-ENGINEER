@@ -10,3 +10,111 @@ go
 create schema silver
 go
 create schema gold
+
+after creating tables in schema bronze you need to use a copy of dataset in your pc with command copy or /copy or bulk insert in other sql server 
+/*
+===============================================================
+ Procedure Name : bronze.load_bronze_data
+ Author         : me
+ Description    : 
+   - Loads raw CRM & ERP data from CSV files into bronze schema.
+   - Calculates execution start time, end time, and duration.
+   - Logs execution status (SUCCESS or ERROR) into load_log table.
+ 
+ Key Features  :
+   1. Uses dynamic EXECUTE + COPY to import CSVs into tables.
+   2. Handles errors with EXCEPTION block and logs SQLERRM.
+   3. Stores audit information: job_name, status, start_time, end_time, duration, error_message.
+ 
+ Usage Example :
+   CALL bronze.load_bronze_data();
+
+ Requirements  :
+   - Source CSV files must exist in the given directories.
+   - User running PostgreSQL must have read access to those files.
+   - Table "load_log" must exist with required columns.
+
+ GitHub Commit Purpose :
+   Initial commit for Bronze Layer Data Loader Procedure 
+   with logging and error handling.
+===============================================================
+*/
+
+CREATE OR REPLACE PROCEDURE bronze.load_bronze_data()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_start_time TIMESTAMP;   -- Track when the loading starts
+    v_end_time   TIMESTAMP;   -- Track when the loading ends
+    v_duration   INTERVAL;    -- Total execution time
+BEGIN
+    -- Capture procedure start timestamp
+    v_start_time := clock_timestamp();
+
+    BEGIN
+        ---------------------------------------------------------------------
+        -- CRM Data Loads
+        ---------------------------------------------------------------------
+
+        -- Load CRM Customers
+        EXECUTE format(
+            'COPY bronze.crm_cust FROM %L DELIMITER '','' CSV HEADER',
+            '../PostgreSQL/17/data/source_crm/customers.csv'
+        );
+
+        -- Load CRM Products
+        EXECUTE format(
+            'COPY bronze.crm_product FROM %L DELIMITER '','' CSV HEADER',
+            '../PostgreSQL/17/data/source_crm/products.csv'
+        );
+
+        -- Load CRM Commande (Order details)
+        EXECUTE format(
+            'COPY bronze.crm_commande FROM %L DELIMITER '','' CSV HEADER',
+            '../PostgreSQL/17/data/source_crm/detail_commande.csv'
+        );
+
+        ---------------------------------------------------------------------
+        -- ERP Data Loads
+        ---------------------------------------------------------------------
+
+        -- Load ERP Employees
+        EXECUTE format(
+            'COPY bronze.erp_emp FROM %L DELIMITER '','' CSV HEADER',
+            '../PostgreSQL/17/data/source_erp/employees.csv'
+        );
+
+        -- Load ERP Inventory
+        EXECUTE format(
+            'COPY bronze.erp_inventory FROM %L DELIMITER '','' CSV HEADER',
+            '../PostgreSQL/17/data/source_erp/inventory.csv'
+        );
+
+        -- Load ERP Finance
+        EXECUTE format(
+            'COPY bronze.erp_finance FROM %L DELIMITER '','' CSV HEADER',
+            '../PostgreSQL/17/data/source_erp/finance.csv'
+        );
+
+        ---------------------------------------------------------------------
+        -- SUCCESS Logging
+        ---------------------------------------------------------------------
+        v_end_time := clock_timestamp();                  -- End time
+        v_duration := v_end_time - v_start_time;          -- Calculate duration
+
+        INSERT INTO load_log (job_name, status, start_time, end_time, duration, error_message)
+        VALUES ('bronze_load', 'SUCCESS', v_start_time, v_end_time, v_duration, NULL);
+
+    -------------------------------------------------------------------------
+    -- ERROR Handling: log failure with error message
+    -------------------------------------------------------------------------
+    EXCEPTION WHEN OTHERS THEN
+        v_end_time := clock_timestamp();
+        v_duration := v_end_time - v_start_time;
+
+        INSERT INTO load_log (job_name, status, start_time, end_time, duration, error_message)
+        VALUES ('bronze_load', 'ERROR', v_start_time, v_end_time, v_duration, SQLERRM);
+    END;
+END;
+$$;
+
